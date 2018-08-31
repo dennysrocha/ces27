@@ -8,7 +8,7 @@ type IPAddr [4]byte
 
 func (m IPAddr) String() string {
 	ip := ""
-	for i:=0; i<len(m)-1; i++ {
+	for i:=0; i<len(m)-1; i++ { //printar no formato de ip com os pontos
 		ip += fmt.Sprintf("%v.", m[i])
 	}
 	return ip+fmt.Sprintf("%v", m[len(m)-1])
