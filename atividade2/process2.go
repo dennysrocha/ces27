@@ -64,7 +64,7 @@ func initConnections() {
 		ServAddr,err := net.ResolveUDPAddr("udp","127.0.0.1"+os.Args[2+i])
 		LocalAddr, err := net.ResolveUDPAddr("udp","127.0.0.1:0")
 		CheckError(err)
-		CliConn[i], err = net.DialUDP("udp", LocalAddr, ServAddr)
+		CliConn[i], err = net.DialUDP("udp", LocalAddr, ServAddr) //cria a conexao
 		CheckError(err)	
 	}
 }
