@@ -38,14 +38,30 @@ func doServerJob() {
 
 	//Escreve na tela a msg recebida
 	clock, _ := strconv.Atoi(string(buf[0:n]))
-	if clock>logicalClock {
+	if clock>logicalClock { //comparo e pego o maior para a variavel logicalClock
 		logicalClock = 1+clock
 	} else {
 		logicalClock++
 	}
-	fmt.Println("Recebi um logicalClock igual a ",clock, " do ",addr)
-	fmt.Println("Agora meu logicalClock eh ",logicalClock)
+	fmt.Println("Recebi um logicalClock igual a ", clock, " do ", addr)
+	fmt.Println("Agora meu logicalClock eh ", logicalClock)
+	fmt.Println("----------------------------------------------------")
 	PrintError(err)
+}
+
+func doClientJob(x int) {
+	fmt.Printf("Enviei para o processo %v ", x)
+	logicalClock++
+	fmt.Printf("o meu logicalClock = %v\n", logicalClock)
+	fmt.Println("----------------------------------------------------")
+	buf := []byte(strconv.Itoa(logicalClock))
+	if x!=myProcess {
+		if x>myProcess { //essa correcao eh feita pra "pular" o indice que seria para este servidor
+			x--
+		}
+		_, err := CliConn[x-1].Write(buf)
+		PrintError(err)
+	}
 }
 
 func readInput(ch chan int) {
@@ -60,7 +76,8 @@ func readInput(ch chan int) {
 
 func initConnections() {
 	myProcess, _ = strconv.Atoi(os.Args[1])
-	fmt.Println("A variavel myProcess recebeu", myProcess)
+	fmt.Println("Eu sou o Processo ", myProcess, "!")
+	fmt.Println("----------------------------------------------------")
 	myPort = os.Args[myProcess+1]
 	nServers = len(os.Args) - 3
 	/*Esse 3 tira o nome (no caso Process), o numero do (meu) processo e tira a porta que é minha. As demais portas são dos outros processos*/
@@ -104,17 +121,7 @@ func main() {
 		select {
 			case x, valid := <-ch:
 				if valid {
-					fmt.Printf("Enviei para o processo %v ", x)
-					logicalClock++
-					fmt.Printf("o meu logicalClock = %v\n", logicalClock)
-					buf := []byte(strconv.Itoa(logicalClock))
-					if x!=myProcess {
-						if x>myProcess {
-							x--
-						}
-						_, err := CliConn[x-1].Write(buf)
-						PrintError(err)
-					}
+					go doClientJob(x)
 				} else {
 					fmt.Println("Channel closed!")
 				}
