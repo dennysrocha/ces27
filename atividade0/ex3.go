@@ -7,7 +7,7 @@ import "fmt"
 func fibonacci() func() int {
 	n:=0
 	m:=1
-	return func() int {
+	return func() int { // fiz pra usar o resultado anterior
 		aux:=n
 		n+=m
 		m=aux
