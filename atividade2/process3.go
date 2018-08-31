@@ -38,6 +38,14 @@ func doServerJob() {
 	PrintError(err)
 }
 
+func doClientJob(x string) {
+	buf := []byte(x)
+	for i:=0; i<nServers; i++ { //aqui cada servidor na conexao recebe a mensagem
+		_,err := CliConn[i].Write(buf)
+		PrintError(err)
+	}
+}
+
 func readInput(ch chan string) {
 	// Non-blocking async routine to listen for terminal input
 	reader := bufio.NewReader(os.Stdin)
@@ -64,7 +72,7 @@ func initConnections() {
 		ServAddr,err = net.ResolveUDPAddr("udp","127.0.0.1"+os.Args[2+i])
 		LocalAddr, err := net.ResolveUDPAddr("udp","127.0.0.1:0")
 		CheckError(err)
-		CliConn[i], err = net.DialUDP("udp", LocalAddr, ServAddr)
+		CliConn[i], err = net.DialUDP("udp", LocalAddr, ServAddr) //cria a conexao
 		CheckError(err)	
 	}
 }
@@ -87,11 +95,7 @@ func main() {
 			case x, valid := <-ch:
 				if valid {
 					fmt.Printf("Recebi do teclado: %s \n", x)
-					buf := []byte(x)
-					for i:=0; i<nServers; i++ {
-						_,err := CliConn[i].Write(buf)
-						PrintError(err)
-					}
+					go doClientJob(x)
 				} else {
 					fmt.Println("Channel closed!")
 				}
