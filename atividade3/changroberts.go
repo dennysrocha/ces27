@@ -142,9 +142,6 @@ func readInput(ch chan string) {
 	}
 }
 
-
-/////////////////////////////////////////////ABAIXO//////////////////////////////////////////////////////////////
-
 func initConnections() {
 	myProcess, _ = strconv.Atoi(os.Args[1])
 	fmt.Println("Este eh o processo ", myProcess)
@@ -182,8 +179,6 @@ func initConnections() {
 	fmt.Println("-----------------------------")
 }
 
-/////////////////////////////////////////////ACIMA///////////////////////////////////////////////////////////////
-
 func main() {
 	initConnections()
 	//O fechamento de conexões devem ficar aqui, assim só fecha conexão quando a main morrer
@@ -201,7 +196,7 @@ func main() {
 		select {
 			case x, valid := <-ch:
 				if valid && x=="S" {
-					fmt.Println("Enviando start")
+					fmt.Println("Start!")
 					MessageReceived.Type = "S"
 					MessageReceived.Id = myID
 					go stage1()
