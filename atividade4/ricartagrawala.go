@@ -21,9 +21,9 @@ var ServConn *net.UDPConn //conexão do meu servidor (onde recebo mensagens dos 
 
 //Estruturas para o processo
 type Message struct { //crio a estrutura para o vector timestamp (aqui chamado de VM)
-	Id int
+	Id int // meu P_i
 	Text string
-	LogicalClock int
+	LogicalClock int // meu T
 }
 
 var MessageReceived Message
@@ -97,11 +97,14 @@ func doServerJob() {
 }
 
 func doClientJob() {
-	jsonRequest, err := json.Marshal(MessageReceived) //reescrevo os dados por meio do json
+	// mandando as requests
+	fmt.Println("Mandando as requests...")
+
+	jsonRequest, err := json.Marshal(Data) //reescrevo os dados por meio do json
 	CheckError(err)
 	
 	time.Sleep(time.Second)
-	for i:=0; i<nServers-1; i++ { // o 2 eh devido ao meu servidor
+	for i:=0; i<nServers-1; i++ { // o 1 eh devido ao meu servidor
 		_, err = CliConn[i].Write(jsonRequest) //envio os dados reescritos pelo canal
 		PrintError(err)
 	}
@@ -122,8 +125,13 @@ func main() {
 		go doServerJob()
 		// When there is a request (from stdin). Do it!
 		select {
-			case x, valid := <-ch:
-				if valid && x=="S" {
+			case msgTerminal, valid := <-ch:
+				if valid && msgTerminal=="x" && state!="HELD" && state!="WANTED" { // ñ pode estar/esperar CS
+					go doClientJob()
+				} else if valid && msgTerminal=="id" {
+					Data.LogicalClock++
+				} else {
+					fmt.Println("Channel closed!")
 				}
 			default:
 				// Do nothing in the non-blocking approach.
