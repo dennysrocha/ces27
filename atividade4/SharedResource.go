@@ -5,6 +5,7 @@ import (
 	"net"
 	"os"
 	"encoding/json"
+	"time"
 )
 
 var ServConn *net.UDPConn //conexão do meu servidor (onde recebo mensagens dos outros processos)
@@ -33,22 +34,41 @@ func PrintError(err error) {
 func main() {
 	Address, err := net.ResolveUDPAddr("udp", ":10001")
 	CheckError(err)
-	Connection, err := net.ListenUDP("udp", Address)
+	ServConn, err = net.ListenUDP("udp", Address)
 	CheckError(err)
-	defer Connection.Close()
+	defer ServConn.Close()
 	for {
 		//Loop infinito para receber mensagem e escrever todo
 		buf := make([]byte, 1024)
 		n,_,err := ServConn.ReadFromUDP(buf)
 		CheckError(err)
-
 		//conteúdo (processo que enviou, seu relógio e texto)
 		err = json.Unmarshal(buf[:n], &MessageReceived) //interpreto por meio do json e passo pra estrutura de dados
 		PrintError(err)
 		
+		
 		//na tela
 		fmt.Print("Processo de ID ", MessageReceived.Id, " entrou na CS\n")
-		fmt.Print("Relógio Lógico: ", MessageReceived.LogicalClock, "\n")
-		fmt.Print("Texto: ", MessageReceived.Text, "\n")
+		fmt.Print("Relógio Lógico: ", MessageReceived.LogicalClock, "\n-\n")
+		fmt.Print("3...\n")
+		time.Sleep(1*time.Second)
+		fmt.Print("2...\n")
+		time.Sleep(1*time.Second)
+		fmt.Print("1...\n")
+		time.Sleep(1*time.Second)
+		fmt.Print("Go!\n")
+		time.Sleep(1*time.Second)
+		fmt.Print("Same song, different chorus: \n")
+		time.Sleep(3*time.Second)
+		fmt.Print("It's stupid, contagious\n")
+		time.Sleep(2*time.Second)
+		fmt.Print("To be broke and famous\n")
+		time.Sleep(2*time.Second)
+		fmt.Print("Can someone please save us from punk rock 101!\n")
+		time.Sleep(4*time.Second)
+		fmt.Println("-----------------------------")
+		fmt.Print(MessageReceived.Text)
+		time.Sleep(1*time.Second)
+		fmt.Println("-----------------------------")
 	}
 }

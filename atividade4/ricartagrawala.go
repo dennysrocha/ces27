@@ -16,6 +16,7 @@ var myPort string //porta do meu servidor
 var myProcess int //numero do meu processo
 var nServers int //qtde de outros processo
 var state string
+var nReplies int // numero de replicas apos solicitacao da CS
 var CliConn []*net.UDPConn //vetor com conexões para os servidores dos outros processos
 var ServConn *net.UDPConn //conexão do meu servidor (onde recebo mensagens dos outros processos)
 
@@ -26,8 +27,10 @@ type Message struct { //crio a estrutura para o vector timestamp (aqui chamado d
 	LogicalClock int // meu T
 }
 
-var MessageReceived Message
+var DataReceived Message
+var DataSent Message
 var Data Message
+var queue []Message
 
 func CheckError(err error) {
 	if err != nil {
@@ -59,14 +62,19 @@ func initConnections() {
 	/*Esse 3 tira o nome (no caso Process), o numero do (meu) processo e tira a porta que é minha. As demais portas são dos outros processos*/
 	
 	state = "RELEASED"
+	nReplies = 0
+	Data.Id = myProcess
+	Data.Text = "DEBOAS"
 	Data.LogicalClock = 0
+	DataSent.Id = myProcess
+	DataSent.Text = "REPLY"
 
 	//Outros códigos para deixar ok a conexão do meu servidor
 	ServAddr,err := net.ResolveUDPAddr("udp","127.0.0.1"+myPort)
 	CheckError(err)
 	ServConn, err = net.ListenUDP("udp", ServAddr)
 	CheckError(err)
-	CliConn = make([]*net.UDPConn, nServers)
+	CliConn = make([]*net.UDPConn, nServers+1)
 
 	//Outros códigos para deixar ok as conexões com os servidores dos outros processos
 	j:=0 //esse j eh apenas para "pular" o i correspondente ao meu servidor
@@ -81,7 +89,28 @@ func initConnections() {
 			j++
 		}
 	}
+	// Se conectar ao SharedResource
+	ServAddr,err = net.ResolveUDPAddr("udp","127.0.0.1"+":10001")
+	CheckError(err)
+	LocalAddr, err := net.ResolveUDPAddr("udp","127.0.0.1:0")
+	CheckError(err)
+	CliConn[nServers], err = net.DialUDP("udp", LocalAddr, ServAddr)
 	fmt.Println("Conexoes inicializadas")
+	fmt.Println("-----------------------------")
+}
+
+func sendReply() {
+	fmt.Print("Mandando a reply ")
+	DataSent.LogicalClock=Data.LogicalClock
+	fmt.Print("pro processo ", DataReceived.Id, "\n")
+	jsonRequest, err := json.Marshal(DataSent) //reescrevo os dados por meio do json
+	CheckError(err)
+	x:=DataReceived.Id
+	if DataReceived.Id>myProcess {
+		x=DataReceived.Id-1
+	}
+	_, err = CliConn[x-1].Write(jsonRequest) //envio os dados reescritos pelo canal
+	PrintError(err)
 	fmt.Println("-----------------------------")
 }
 
@@ -91,22 +120,60 @@ func doServerJob() {
 	n,_,err := ServConn.ReadFromUDP(buf)
 	CheckError(err)
 
-	err = json.Unmarshal(buf[:n], &MessageReceived) //interpreto por meio do json e passo pra estrutura de dados
+	err = json.Unmarshal(buf[:n], &DataReceived) //interpreto por meio do json e passo pra estrutura de dados
 	PrintError(err)
+	time.Sleep(2*time.Second)
+	if DataReceived.Text == "REQUEST" {
+		if state=="HELD" || (state=="WANTED" && Data.LogicalClock <= DataReceived.LogicalClock) {
+			if Data.LogicalClock == DataReceived.LogicalClock && Data.Id>DataReceived.Id {
+				sendReply()
+			} else {
+				queue = append(queue, DataReceived) // coloca a mensagem na fila
+			}
+		} else {
+			sendReply()
+		}
+	} else if DataReceived.Text == "REPLY" {
+		nReplies++
+	}
 
 }
 
-func doClientJob() {
+func doClientJob() { // entrar na secao critica
+	state = "WANTED"
 	// mandando as requests
 	fmt.Println("Mandando as requests...")
-
+	Data.Text = "REQUEST"
 	jsonRequest, err := json.Marshal(Data) //reescrevo os dados por meio do json
 	CheckError(err)
 	
 	time.Sleep(time.Second)
-	for i:=0; i<nServers-1; i++ { // o 1 eh devido ao meu servidor
+	for i:=0; i<nServers; i++ {
 		_, err = CliConn[i].Write(jsonRequest) //envio os dados reescritos pelo canal
 		PrintError(err)
+	}
+	fmt.Println("-----------------------------")
+
+	for {
+		if nReplies == nServers {
+			state = "HELD"
+			break
+		}
+	}
+	Data.Text = "https://www.youtube.com/watch?v=Ajq4Ek-jChA\n"
+	jsonRequest, err = json.Marshal(Data) //reescrevo os dados por meio do json
+	CheckError(err)
+	_, err = CliConn[nServers].Write(jsonRequest) //envio os dados reescritos pelo canal
+	PrintError(err)
+	time.Sleep(16*time.Second)
+	// Aqui ja esta fora da secao critica
+	state = "RELEASED"
+	Data.Text = "DEBOAS"
+	nReplies = 0
+	for len(queue)>0 {
+		DataReceived.Id = queue[0].Id
+		queue = queue[1:]
+		sendReply()
 	}
 }
 
@@ -114,7 +181,7 @@ func main() {
 	initConnections()
 	//O fechamento de conexões devem ficar aqui, assim só fecha conexão quando a main morrer
 	defer ServConn.Close()
-	for i := 0; i < nServers; i++ {
+	for i := 0; i < nServers+1; i++ { // o +1 eh pro SharedResource
 		defer CliConn[i].Close()
 	}
 	//Todo Process fará a mesma coisa: ouvir msg e mandar infinitos i’s para os outros processos
@@ -127,9 +194,14 @@ func main() {
 		select {
 			case msgTerminal, valid := <-ch:
 				if valid && msgTerminal=="x" && state!="HELD" && state!="WANTED" { // ñ pode estar/esperar CS
+					fmt.Println("Recebido do teclado: ", msgTerminal)
+					fmt.Println("-----------------------------")
 					go doClientJob()
 				} else if valid && msgTerminal=="id" {
+					fmt.Println("Recebido do teclado: ", msgTerminal)
 					Data.LogicalClock++
+					fmt.Println("Meu Logical Clock: ", Data.LogicalClock)
+					fmt.Println("-----------------------------")
 				} else {
 					fmt.Println("Channel closed!")
 				}
