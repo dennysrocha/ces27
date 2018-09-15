@@ -32,6 +32,8 @@ func PrintError(err error) {
 }
 
 func main() {
+	fmt.Println("Regiao crítica estabelecida!")
+	fmt.Println("-----------------------------")
 	Address, err := net.ResolveUDPAddr("udp", ":10001")
 	CheckError(err)
 	ServConn, err = net.ListenUDP("udp", Address)
