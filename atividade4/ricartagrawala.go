@@ -122,15 +122,16 @@ func doServerJob() {
 
 	err = json.Unmarshal(buf[:n], &DataReceived) //interpreto por meio do json e passo pra estrutura de dados
 	PrintError(err)
-	time.Sleep(2*time.Second)
 	if DataReceived.Text == "REQUEST" {
 		if state=="HELD" || (state=="WANTED" && Data.LogicalClock <= DataReceived.LogicalClock) {
 			if Data.LogicalClock == DataReceived.LogicalClock && Data.Id>DataReceived.Id {
+				//time.Sleep(50000000*time.Nanosecond)
 				sendReply()
 			} else {
 				queue = append(queue, DataReceived) // coloca a mensagem na fila
 			}
 		} else {
+			//time.Sleep(50000000*time.Nanosecond)
 			sendReply()
 		}
 	} else if DataReceived.Text == "REPLY" {
@@ -143,16 +144,16 @@ func doClientJob() { // entrar na secao critica
 	state = "WANTED"
 	// mandando as requests
 	fmt.Println("Mandando as requests...")
+	fmt.Println("-----------------------------")
 	Data.Text = "REQUEST"
 	jsonRequest, err := json.Marshal(Data) //reescrevo os dados por meio do json
 	CheckError(err)
 	
-	time.Sleep(time.Second)
+	time.Sleep(2*time.Second)
 	for i:=0; i<nServers; i++ {
 		_, err = CliConn[i].Write(jsonRequest) //envio os dados reescritos pelo canal
 		PrintError(err)
 	}
-	fmt.Println("-----------------------------")
 
 	for {
 		if nReplies == nServers {
@@ -171,6 +172,7 @@ func doClientJob() { // entrar na secao critica
 	Data.Text = "DEBOAS"
 	nReplies = 0
 	for len(queue)>0 {
+		//fmt.Println(queue[0].Id)
 		DataReceived.Id = queue[0].Id
 		queue = queue[1:]
 		sendReply()
@@ -210,6 +212,6 @@ func main() {
 				time.Sleep(time.Second * 1)
 		}
 		// Wait a while
-		time.Sleep(time.Second * 1)
+		//time.Sleep(time.Second * 1)
 	}
 }
