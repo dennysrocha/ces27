@@ -88,10 +88,6 @@ func initConnections() {
 			CheckError(err)
 			j++
 			// definir os parametros latest, engager, wait e num
-			/*num = 0
-			wait = false
-			latest = 0
-			engager = 0*/
 			num = append(num, 0)
 			wait = append(wait, false)
 			latest = append(latest, 0)
@@ -115,6 +111,8 @@ func doServerJob() {
 	str := "[" + data[2:] + "]"
 	var ints []int
     json.Unmarshal([]byte(str),&ints) // converter do formato byte pra ints
+
+    // inicializacao das variáveis
 	i := ints[0]
 	m :=  ints[1]
 	j := ints[2]
@@ -122,7 +120,7 @@ func doServerJob() {
 
 	fmt.Print("R", j, "\t--->\t", data, "\n")
 
-	if msgType == "Q" {
+	if msgType == "Q" { // mensagem do tipo Query
 		if m > latest[i] {
 			latest[i] = m
 			engager[i] = j
@@ -134,12 +132,12 @@ func doServerJob() {
 		} else if wait[i] && m==latest[i] {
 			sendReply(i,m,k,j)
 		}
-	} else if msgType == "R" {
+	} else if msgType == "R" { // mensagem do tipo Reply
 		if wait[i] && m==latest[i] {
 			num[i]--
 			if num[i]==0 {
 				if i==k {
-					fmt.Println("\nDEADLOCK")
+					fmt.Println("\nDEADLOCK") // deadlock detectado
 					fmt.Println("\nClosing channels...")
 					for u:=1; u<nServers+2; u++ { // fechar todos os processos
 						if u!=id {
@@ -157,22 +155,22 @@ func doServerJob() {
 }
 
 func doClientJob(otherProcess int, data string) { // entrar na secao critica
-	buf := []byte(data) //reescrevo os dados por meio do json
-	if otherProcess > id { // o vetor CliConn "pula" o processo id
+	buf := []byte(data)
+	if otherProcess > id { // o vetor CliConn "pula" o processo id, por isso o --
 		otherProcess--
 	}
-	_, err := CliConn[otherProcess-1].Write(buf) //envio os dados reescritos pelo canal
+	_, err := CliConn[otherProcess-1].Write(buf) //envio os dados pelo canal
 	PrintError(err)
 	time.Sleep(time.Second * 1)
 }
 
-func sendQuery(i int, m int, j int, k int) {
+func sendQuery(i int, m int, j int, k int) { // enviar uma Query
 	data := "Q," + strconv.Itoa(i) + "," + strconv.Itoa(m) + "," + strconv.Itoa(j) + "," + strconv.Itoa(k)
 	fmt.Print("S", k, "\t--->\t", data, "\n")
 	go doClientJob(k, data)
 }
 
-func sendReply(i int, m int, k int, j int) {
+func sendReply(i int, m int, k int, j int) { // enviar um Reply
 	data := "R," + strconv.Itoa(i) + "," + strconv.Itoa(m) + "," + strconv.Itoa(k) + "," + strconv.Itoa(j)
 	fmt.Print("S", j, "\t--->\t", data, "\n")
 	go doClientJob(j, data)
